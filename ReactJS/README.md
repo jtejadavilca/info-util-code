@@ -71,7 +71,7 @@ yarn add --dev whatwg-fetch
 ```
 
 ### Luego se necesita crear los siguientes archivos de configuración:
-#### Archivo *babel.config.js* con contenido:
+#### Archivo *babel.config.cjs* con contenido:
 
 ```
 module.exports = {
@@ -81,7 +81,7 @@ module.exports = {
     ],
 };
 ```
-#### Archivo *jest.config.js* con contenido:
+#### Archivo *jest.config.cjs* con contenido:
 ```
 module.exports = {
     testEnvironment: 'jest-environment-jsdom',
@@ -90,7 +90,7 @@ module.exports = {
 ```
 
 
-#### Archivo *jest.setup.js* con contenido (Este archivo dio error al correr los test, es mejor no usarlo ni referenciarlo en el archivo *jest.config.js*):
+#### Archivo *jest.setup.cjs* con contenido (Este archivo dio error al correr los test, es mejor no usarlo ni referenciarlo en el archivo *jest.config.js*):
 ```
 // En caso de necesitar la implementación del FetchAPI
 import 'whatwg-fetch'; // <-- yarn add whatwg-fetch
