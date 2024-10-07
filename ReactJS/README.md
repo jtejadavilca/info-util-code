@@ -76,7 +76,7 @@ yarn add --dev whatwg-fetch
 
 ### Luego se necesita crear los siguientes archivos de configuración:
 
-#### Archivo _babel.config.js_ con contenido:
+#### Archivo _babel.config.cjs_ con contenido:
 
 ```
 module.exports = {
@@ -95,6 +95,8 @@ module.exports = {
     setupFiles: ['./jest.setup.js']
 }
 ```
+
+#### Archivo _jest.setup.js_ con contenido (Este archivo dio error al correr los test, es mejor no usarlo ni referenciarlo en el archivo _jest.config.js_):
 
 #### Archivo _jest.setup.js_ con contenido (Este archivo dio error al correr los test, es mejor no usarlo ni referenciarlo en el archivo _jest.config.js_):
 
