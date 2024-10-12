@@ -56,6 +56,9 @@ npm tailwindcss -i ./src/main.css -o ./public/main.css --watch
   },
 ```
 
+> [!IMPORTANT]  
+> Tener en cuenta que esta transpilación no es necesaria en proyectos con frameworks como _ReactJS_, _VueJS_, _Angular_, ya que estos se encargan de realizarlo automáticamente cuando tienen tailwind instalado.
+
 ### Finalmente se referencia al archivo en el HTML (`'./public/index.html'`):
 
 ```html
