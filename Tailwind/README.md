@@ -22,13 +22,16 @@ npm install -D tailwindcss
 ```javascript
 /** @type {import('tailwindcss').Config} */
 module.exports = {
-    content: ["./src/**/*.{html,js}"],
+    content: ["./public/**/*.{html,js}"],
     theme: {
         extend: {},
     },
     plugins: [],
 };
 ```
+
+> [!WARNING]  
+> Tomar en cuenta que en la configuración anterior, la propiedad **content** (array) debe tener la ubicaión del HTML al que se le agregan los estilos de tailwind, y cuando se transpilen los estilos, se van a considerar solo los utilizados en dicho html. Por tanto, no se deben colocar los html en la carpeta src, ya que **content** no apunta a ese lugar. Además, los html deben hacer referencia a los CSS que están en `/public`y no en `/src`
 
 ## Agregar las directivas al inicio del archivo css principal (e.g.: `main.css`)
 
