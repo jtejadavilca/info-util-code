@@ -87,7 +87,7 @@ module.exports = {
 };
 ```
 
-#### Archivo _jest.config.js_ con contenido:
+#### Archivo _jest.config.cjs_ con contenido:
 
 ```
 module.exports = {
@@ -98,7 +98,7 @@ module.exports = {
 
 #### Archivo _jest.setup.js_ con contenido (Este archivo dio error al correr los test, es mejor no usarlo ni referenciarlo en el archivo _jest.config.js_):
 
-#### Archivo _jest.setup.js_ con contenido (Este archivo dio error al correr los test, es mejor no usarlo ni referenciarlo en el archivo _jest.config.js_):
+#### UPDATE: No debería dar error, sólo se necesita instalar `yarn add --dev whatwg-fetch` según se indica líneas arriba. Solo tomar en cuenta que al instalar ese u otro paquete, la aplicación no debe estar corriendo, sino no va a instalar bien.
 
 ```
 // En caso de necesitar la implementación del FetchAPI
