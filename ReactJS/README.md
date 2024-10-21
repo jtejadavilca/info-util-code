@@ -146,6 +146,10 @@ describe("useCounter", () => {
 });
 ```
 
+### There are more examples of unit tests on this reactjs project:
+https://github.com/jtejadavilca-cursos/journal-app-v2
+
+
 # Installing Redux Toolkit and React-Redux:
 
 ### npm:
