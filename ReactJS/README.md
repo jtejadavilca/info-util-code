@@ -60,6 +60,13 @@ yarn add --dev jest babel-jest @babel/preset-env @babel/preset-react
 yarn add --dev @testing-library/react @types/jest jest-environment-jsdom
 ```
 
+Sometimes, componentes (.jsx files) requires event handling and we could receive this error: `Cannot find module '@testing-library/dom' from 'node_modules/@testing-library/react/dist/pure.js'`
+So, in order to fix it, according to [the documentation](https://testing-library.com/docs/user-event/install), we need to install this libraries:
+```
+yarn add --dev @testing-library/user-event @testing-library/dom
+```
+
+
 ### Si se está usando el `fetch`, es necesario instalar lo siguiente:
 
 ```
@@ -138,6 +145,10 @@ describe("useCounter", () => {
     });
 });
 ```
+
+### There are more examples of unit tests on this reactjs project:
+https://github.com/jtejadavilca-cursos/journal-app-v2
+
 
 # Installing Redux Toolkit and React-Redux:
 
