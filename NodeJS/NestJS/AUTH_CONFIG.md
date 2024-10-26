@@ -182,3 +182,191 @@ export class AuthController {
 
 > [!IMPORTANT]  
 > At the end, don't forget to include `AuthModule` into `app.module.ts`
+
+<hr />
+<hr />
+
+## Authorization:
+
+> [!IMPORTANT] \
+> In order to have authorization functionality (it needs to have Authentication configured before).
+
+> [!NOTE] \
+> It is possible to use directly some annotations in the controller methods like: \
+> @UseGuards() from `@nestjs/common` and @AuthGuard() from `@nestjs/passport` \
+> it is used like: `@UseGuards(@AuthGuard())` but it is better to encapsulate it \
+> in a custom decorator as it is shown below.
+
+### First, need to create some decorators:
+
+1. **Auth** decorator (`auth.decorator.ts`): \
+   This decorator allows us to use others decorators internally, then, it won't be necessary to add severals decorators on the controller methods, and instead will be only necessary to add `@Auth`. In this case, the decorator we are going to use are: `RoleProtected` and `UseGuard`
+
+```ts
+// Custom decorator
+// /auth/decorators/auth.decorator.ts
+import { applyDecorators, UseGuards } from "@nestjs/common";
+import { ValidRoles } from "../interfaces";
+import { RoleProtected } from "./role-protected.decorator";
+import { AuthGuard } from "@nestjs/passport";
+import { UseRoleGuard } from "../guards/use-role/use-role.guard";
+
+export function Auth(...roles: ValidRoles[]) {
+    return applyDecorators(
+        RoleProtected(...roles), // This is another custom decorator which allow us to validate endpoints by roles (the implementation is few lines below)
+        UseGuards(
+            // Functions that receives Guards
+            AuthGuard(), // This Guard (from @nestjs/passport library) uses the JwtStrategy to validate the token
+            UseRoleGuard // This is one of custom Guards (the implementation is few lines below)
+        )
+    );
+}
+```
+
+2. **RolProtected** decorator (`role-protected.decorator.ts`): \
+   This decorator is used to set a list of roles into the request metadata and it will be used later in the UseRoleGuard to validate the logged in role user.
+
+```ts
+import { SetMetadata } from "@nestjs/common";
+import { ValidRoles } from "../interfaces";
+
+export const META_ROLES = "roles";
+
+export const RoleProtected = (...args: ValidRoles[]) => {
+    return SetMetadata(META_ROLES, args);
+};
+```
+
+3. **GetUser** decorator (`get-user.decorator.ts`): \
+   This decorator is going to be used to get the logged in user as parameter in controller methods. **NOTE:** It is necessary to use the `@Auth()` decorator too, otherwise, user is going to be `undefined`
+
+```ts
+// Custom decorator
+// /auth/decorators/get-user.decorator.ts
+import { createParamDecorator, ExecutionContext, InternalServerErrorException } from "@nestjs/common";
+
+export const GetUser = createParamDecorator((data: string, ctx: ExecutionContext) => {
+    const request = ctx.switchToHttp().getRequest();
+    const user = request.user;
+
+    if (!user) {
+        throw new InternalServerErrorException("User not found in the request");
+    }
+
+    // if 'data' is email or id or another user field,
+    // it means we only require that field, otherwise, we need the whole user.
+    return data ? user[data] : user;
+});
+```
+
+4. **RawHeaders** decorator (`raw-headers.decorator.ts`): \
+   The use of this decorator is optional, only if we need to get the headers sent by client (for example to get a custom haeder). To use this decorator should be included in the controller methods as a parámeter, like: `getData(@RawHeaders() headers) {}`
+
+```ts
+import { createParamDecorator, ExecutionContext } from "@nestjs/common";
+
+export const RawHeaders = createParamDecorator((data: unknown, ctx: ExecutionContext) => {
+    const request = ctx.switchToHttp().getRequest();
+    const headers = request.rawHeaders;
+    return headers;
+});
+```
+
+### Now we need a custom guard
+
+1. **UseRoleGuard** (`use-role.guard.ts`): \
+   This custom guard is going to validate that the logged in user has the role sent as parameter.
+
+```ts
+import { BadRequestException, CanActivate, ExecutionContext, ForbiddenException, Injectable } from "@nestjs/common";
+import { Reflector } from "@nestjs/core";
+import { Observable } from "rxjs";
+import { META_ROLES } from "src/auth/decorators/role-protected.decorator";
+
+@Injectable()
+export class UseRoleGuard implements CanActivate {
+    constructor(private readonly reflector: Reflector) {}
+
+    canActivate(context: ExecutionContext): boolean | Promise<boolean> | Observable<boolean> {
+        // Here we get the roles settled in @RoleProtected decorator
+        const validRoles: string[] = this.reflector.get<string[]>(META_ROLES, context.getHandler());
+
+        // If none roles were sent, then nothing is validated
+        if (!validRoles || validRoles.length === 0) {
+            return true;
+        }
+
+        // If we don't use @Auth() decorator, this request won't contain the logged in user
+        const request = context.switchToHttp().getRequest();
+        const { user } = request;
+
+        if (!user) {
+            throw new BadRequestException("User not found");
+        }
+
+        const { roles } = user;
+
+        if (!roles.some((role: string) => validRoles.includes(role))) {
+            throw new ForbiddenException(`User ${user.fullName} need a valid role: [${validRoles}]`);
+        }
+
+        return true;
+    }
+}
+```
+
+### Finally we can use the decorators this way:
+
+-   Example 1:
+
+```ts
+// This is a controller method that uses @Auth() and @GetUser
+// @Auth() doesn't have specified roles
+// @GetUser() doesn't have specified field, then it returns the whole logged in user.
+  @Get('check-status')
+  @Auth()
+  checkAuthStatus(
+    @GetUser() user,
+  ) {
+    return this.authService.checkAuthStatus(user);
+  }
+```
+
+-   Example 2:
+
+```ts
+// This is a controller method that uses only @Auth() and it has only one role allowed (ValidRoles.admin)
+// @Auth() has one specified role: ValidRoles.admin
+  @Get('private3')
+  @Auth(ValidRoles.admin)
+  getPrivate3(
+  ) {
+
+    return {
+      ok: true,
+      message: 'This is a private route',
+    };
+  }
+```
+
+-   Example 3:
+
+```ts
+// This is a controller method that uses @Auth(), @GetUser() and @RawHeaders()
+// @Auth() has only ValidRoles.admin role allowed
+// @GetUser() has specified just email field, which is going to be returned and passed as parameter.
+// @RawHeaders() gets all the request headers as an array of strings with all the sent headers by client
+  @Get('private')
+  @Auth(ValidRoles.admin)
+  getPrivate(
+    @GetUser('email') userEmail,
+    @RawHeaders() headers,
+  ) {
+
+    return {
+      ok: true,
+      message: 'This is a private route',
+      headers
+    };
+  }
+```
