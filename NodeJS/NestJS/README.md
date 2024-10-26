@@ -254,3 +254,31 @@ export class ProductMongoRepository implements ProductRepository {
     }
 }
 ```
+
+## It is recommendable to add these libraries (`class-validator` and `class-transformer`) to handle dates in request body:
+
+1. Installing libreries:
+
+```
+yarn add class-validator class-transformer
+```
+
+2. Adding required configuration:
+
+```ts
+// main.ts
+
+import { NestFactory } from "@nestjs/core";
+import { AppModule } from "./app.module";
+import { ValidationPipe } from "@nestjs/common";
+
+async function bootstrap() {
+    const app = await NestFactory.create(AppModule);
+    app.useGlobalPipes(new ValidationPipe({ transform: true })); //<- This one
+    app.setGlobalPrefix("api");
+    await app.listen(3000);
+}
+bootstrap();
+```
+
+## Authentication and Authorization necessary config is in [AUTH_CONFIG.md](./AUTH_CONFIG.md) file.
