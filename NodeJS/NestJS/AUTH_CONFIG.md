@@ -370,3 +370,30 @@ export class UseRoleGuard implements CanActivate {
     };
   }
 ```
+
+### After all the authorization config, we need to **import** AuthModule in every module we want to use the authorization control
+
+-   Example:
+
+```ts
+import { Module } from "@nestjs/common";
+import { ConfigModule } from "@nestjs/config";
+import { MongooseModule } from "@nestjs/mongoose";
+import { ProductSchema } from "./schema/product.schema";
+
+import { ProductService } from "./service/product.service";
+import { ProductController } from "./product.controller";
+import { ProductRepository } from "./repository/product.repository";
+import { AuthModule } from "src/auth/auth.module";
+
+@Module({
+    imports: [
+        ConfigModule,
+        MongooseModule.forFeature([{ name: "Product", schema: ProductSchema }]),
+        AuthModule, // <- Imported here
+    ],
+    controllers: [ProductController],
+    providers: [ProductRepository, ProductService],
+})
+export class ProductModule {}
+```
