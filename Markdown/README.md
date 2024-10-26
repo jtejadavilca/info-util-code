@@ -46,3 +46,65 @@ Second Term
 : This is another definition of the second term.
 
 # [Adding](PROGRAMMING_LANGUAGES_SINTAXIS.md) language sintaxis ([source](https://developer.mozilla.org/en-US/docs/MDN/Writing_guidelines/Howto/Markdown_in_MDN)):
+
+# Quotes:
+
+### NOTE:
+
+```
+> [!NOTE]
+> Highlights information that users should take into account, even when skimming.
+```
+
+Result:
+
+> [!NOTE]  
+> Highlights information that users should take into account, even when skimming.
+
+### TIP:
+
+```
+> [!TIP]
+> Optional information to help a user be more successful.
+```
+
+Result:
+
+> [!TIP]
+> Optional information to help a user be more successful.
+
+### IMPORTANT:
+
+```
+> [!IMPORTANT]
+> Crucial information necessary for users to succeed.
+```
+
+Result:
+
+> [!IMPORTANT]  
+> Crucial information necessary for users to succeed.
+
+### WARNING:
+
+```
+> [!WARNING]
+> Critical content demanding immediate user attention due to potential risks.
+```
+
+Result:
+
+> [!WARNING]  
+> Critical content demanding immediate user attention due to potential risks.
+
+### CAUTION:
+
+```
+> [!CAUTION]
+> Negative potential consequences of an action.
+```
+
+Result:
+
+> [!CAUTION]
+> Negative potential consequences of an action.
