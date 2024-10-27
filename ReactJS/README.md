@@ -62,10 +62,10 @@ yarn add --dev @testing-library/react @types/jest jest-environment-jsdom
 
 Sometimes, componentes (.jsx files) requires event handling and we could receive this error: `Cannot find module '@testing-library/dom' from 'node_modules/@testing-library/react/dist/pure.js'`
 So, in order to fix it, according to [the documentation](https://testing-library.com/docs/user-event/install), we need to install this libraries:
+
 ```
 yarn add --dev @testing-library/user-event @testing-library/dom
 ```
-
 
 ### Si se está usando el `fetch`, es necesario instalar lo siguiente:
 
@@ -147,10 +147,12 @@ describe("useCounter", () => {
 ```
 
 ### There are more examples of unit tests on this reactjs project:
+
 https://github.com/jtejadavilca-cursos/journal-app-v2
 
-
 # Installing Redux Toolkit and React-Redux:
+
+Redux is a state management tool use in javascript applications. It helps to centralize and control the state of all our application. And Redux Toolkit is an excelent library whish allow us to implement Redux quite easier.
 
 ### npm:
 
@@ -162,6 +164,310 @@ npm install @reduxjs/toolkit react-redux
 
 ```
 yarn add @reduxjs/toolkit react-redux
+```
+
+## Implementation
+
+After we have Redux toolkit installed, we need to create some files like:
+
+-   store.js
+-   featureASlice.js
+-   featureBSlice.js
+-   thunks.js
+
+> [!IMPORTANT] \
+> Keep in mind that **slices** handle only sync process, if we need to handle async process, we need to use previously a **thunk**.
+
+Example of `calendarSlice.js`:
+
+```js
+// Path: /store/calendar/authSlice.js
+import { createSlice } from "@reduxjs/toolkit";
+export const authSlice = createSlice({
+    name: "auth",
+    initialState: {
+        status: "checking", // "checking" | "authenticated" | "not-authenticated"
+        uid: null,
+        email: null,
+        displayName: null,
+        photoURL: null,
+        errorMessage: null,
+    },
+    reducers: {
+        login: (state, { payload }) => {
+            state.status = "authenticated";
+            state.uid = payload.uid;
+            state.email = payload.email;
+            state.displayName = payload.displayName;
+            state.photoURL = payload.photoURL;
+            state.errorMessage = null;
+        },
+        logout: (state, { payload }) => {
+            state.status = "not-authenticated";
+            state.uid = null;
+            state.email = null;
+            state.displayName = null;
+            state.photoURL = null;
+            state.errorMessage = payload?.errorMessage;
+        },
+        checkingCrendentials: (state) => {
+            state.status = "checking";
+        },
+        wrongCredentials: (state, { payload }) => {
+            state.status = "not-authenticated";
+            state.errorMessage = payload;
+            state.uid = null;
+            state.email = null;
+            state.displayName = null;
+            state.photoURL = null;
+        },
+    },
+});
+export const { login, logout, checkingCrendentials, wrongCredentials } = authSlice.actions;
+```
+
+Example of `store.js`:
+
+```js
+// Path: /store/store.js
+import { configureStore } from "@reduxjs/toolkit";
+import { authSlice } from "./auth/authSlice";
+import { journalSlice } from "./journal/journalSlice";
+
+export const store = configureStore({
+    reducer: {
+        auth: authSlice.reducer,
+        journal: journalSlice.reducer,
+    },
+    /* Para cuando sea necesario desactivar la comprobación de serialización de Redux Toolkit
+    middleware: (getDefaultMiddleware) => getDefaultMiddleware({
+        serializableCheck: false,
+    }),
+    */
+});
+```
+
+When we need to handle async process, we need a **thunk** to do it, and this is going to interact with our slices:
+
+```js
+import {
+    logoutFirebase,
+    registerUserWithEmailPassword,
+    signInWithEmailPassword,
+    signInWithGoogle,
+} from "../../firebase/providers";
+import { clearNotesLogout } from "../journal/journalSlice";
+import { checkingCrendentials, login, logout, wrongCredentials } from "./authSlice";
+
+export const checkingAuthentication = () => {
+    return async (dispatch) => {
+        dispatch(checkingCrendentials());
+    };
+};
+
+export const startGoogleAuthentication = () => {
+    return async (dispatch) => {
+        dispatch(checkingCrendentials()); // <- Here it calls slice
+
+        const result = await signInWithGoogle();
+
+        if (result.ok) {
+            return dispatch(login(result)); // <- Here it calls slice
+        }
+
+        handlingWrongCredentials(dispatch, result.errorMessage);
+    };
+};
+
+export const startCreatingUserWithEmailPassword = ({ email, password, displayName }) => {
+    return async (dispatch) => {
+        dispatch(checkingCrendentials());
+
+        const { ok, errorMessage, uid, photoURL } = await registerUserWithEmailPassword(email, password, displayName);
+
+        if (ok) {
+            return dispatch(login({ uid, photoURL, displayName, email })); // <- Here it calls slice
+        }
+
+        handlingWrongCredentials(dispatch, errorMessage);
+    };
+};
+
+export const startLoginWithEmailPassword = (email, password) => {
+    return async (dispatch) => {
+        dispatch(checkingCrendentials()); // <- Here it calls slice
+
+        const result = await signInWithEmailPassword(email, password);
+
+        if (result.ok) {
+            return dispatch(login(result)); // <- Here it calls slice
+        }
+
+        handlingWrongCredentials(dispatch, "Invalid email or password");
+    };
+};
+
+export const startLogout = () => {
+    return async (dispatch) => {
+        await logoutFirebase();
+        dispatch(logout()); // <- Here it calls slice
+        dispatch(clearNotesLogout()); // <- Here it calls slice
+    };
+};
+
+const handlingWrongCredentials = (dispatch, errorMessage) => {
+    dispatch(logout({ errorMessage })); // <- Here it calls slice
+    dispatch(wrongCredentials(errorMessage)); // <- Here it calls slice
+
+    setTimeout(() => {
+        dispatch(wrongCredentials(null)); // <- Here it calls slice
+    }, 5000);
+};
+```
+
+## How to use is:
+
+Example using a `LoginPage.jsx` component:
+
+```js
+// Path /auth/pages/LoginPage.jsx
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useDispatch, useSelector } from "react-redux"; //! NEED THESE HOOKS
+
+import { Link as RouterLink, useNavigate } from "react-router-dom";
+import { Google } from "@mui/icons-material";
+import { Alert, Button, Link, TextField, Typography } from "@mui/material";
+import Grid from "@mui/material/Grid2";
+
+import { AuthLayout } from "../layout/AuthLayout";
+import { useForm } from "../../hooks";
+import { startGoogleAuthentication, startLoginWithEmailPassword } from "../../store/auth/thunks"; // Need this to import thunks methods directly
+
+const formData = {
+    email: "",
+    password: "",
+};
+
+const formValidations = {
+    email: [(value) => value.includes("@"), "Invalid email"],
+    password: [(value) => value.length > 5, "Password must be at least 6 characters"],
+};
+
+export const LoginPage = () => {
+    const dispatch = useDispatch(); // Need this to create a **dispatch**
+    const { status, errorMessage } = useSelector((state) => state.auth); // Need this to obtain status attribute from a slice (which contains a specific state of a feature, like this auth example)
+    const isAuthenticating = useMemo(() => status === "checking", [status]);
+    const isAuthenticated = useMemo(() => status === "authenticated", [status]);
+    const navigate = useNavigate();
+
+    const { email, password, onInputChange, isFormValid, emailValid, passwordValid } = useForm(
+        formData,
+        formValidations
+    );
+
+    const [formSubmitted, setFormSubmitted] = useState(false);
+
+    useEffect(() => {
+        if (isAuthenticated) {
+            navigate("/");
+        }
+    }, [isAuthenticated]);
+
+    const login = useCallback(() => {
+        dispatch(startLoginWithEmailPassword(email, password)); // Need this to "dispath" (execute) an async process (each one of these methods uses also the dispath to call slice methods internally)
+    }, [email, password, dispatch]);
+
+    const loginGoogle = useCallback(() => {
+        dispatch(startGoogleAuthentication()); // Need this to "dispath" (execute) an async process (each one of these methods uses also the dispath to call slice methods internally)
+    }, [dispatch]);
+
+    const onLogin = (e) => {
+        e.preventDefault();
+        setFormSubmitted(true);
+        if (!isFormValid) return;
+        login();
+    };
+
+    const onGoogleLogin = (e) => {
+        e.preventDefault();
+        setFormSubmitted(true);
+        loginGoogle();
+    };
+
+    return (
+        <AuthLayout title="Login" maxWidth={468}>
+            <form onSubmit={onLogin} className="animate__animated animate__fadeIn">
+                <Grid container>
+                    <Grid item="true" size={12} sx={{ mb: 2 }}>
+                        <TextField
+                            label="Email"
+                            type="email"
+                            placeholder="user@email.com"
+                            variant="outlined"
+                            fullWidth
+                            name="email"
+                            value={email}
+                            onChange={onInputChange}
+                            error={formSubmitted && !!emailValid}
+                            helperText={emailValid}
+                        />
+                    </Grid>
+                    <Grid item="true" size={12} sx={{ mb: 2 }}>
+                        <TextField
+                            label="Password"
+                            type="password"
+                            placeholder="Password"
+                            variant="outlined"
+                            fullWidth
+                            name="password"
+                            value={password}
+                            onChange={onInputChange}
+                            error={formSubmitted && !!passwordValid}
+                            helperText={passwordValid}
+                        />
+                    </Grid>
+                </Grid>
+
+                {errorMessage && (
+                    <Grid item="true" size={12} sx={{ mb: 2 }}>
+                        <Alert severity="error">{errorMessage}</Alert>
+                    </Grid>
+                )}
+
+                <Grid container spacing={2} sx={{ mb: 2 }}>
+                    <Grid item="true" size={{ xs: 12, md: 6 }}>
+                        <Button
+                            variant="contained"
+                            type="submit"
+                            fullWidth
+                            onClick={onLogin}
+                            disabled={isAuthenticating}
+                        >
+                            Login
+                        </Button>
+                    </Grid>
+                    <Grid item="true" size={{ xs: 12, md: 6 }}>
+                        <Button variant="contained" fullWidth onClick={onGoogleLogin} disabled={isAuthenticating}>
+                            <Google />
+                            <Typography sx={{ ml: 1 }}>Google</Typography>
+                        </Button>
+                    </Grid>
+                </Grid>
+
+                <Grid container direction="row" justifyContent="end">
+                    <Grid item="true" size={6} sx={{ mt: 1 }}>
+                        <Typography variant="body2" textAlign="right">
+                            Don't have an account?{" "}
+                            <Link component={RouterLink} color="inherit" to="/auth/register">
+                                Register
+                            </Link>
+                        </Typography>
+                    </Grid>
+                </Grid>
+            </form>
+        </AuthLayout>
+    );
+};
 ```
 
 # Installing Firebase:
