@@ -282,3 +282,19 @@ bootstrap();
 ```
 
 ## Authentication and Authorization necessary config is in [AUTH_CONFIG.md](./AUTH_CONFIG.md) file.
+
+# Deployment of a Node project:
+
+In this case, we could use Railway, which is a host cloud service where we can deploy our project.
+
+1. We need our project in a github repository.
+2. Create an account in Railway (preferably just log in using github account).
+3. In Railway, click on **Start new Project**.
+4. In the project list, select the project we want to deploy.
+5. Click on **Add Variables** (Railway scan our .env or .env.template to create variables based on it).
+6. Add the variables our project requires.
+7. The PORT variable is not necessary, Railway assigns a random port.
+8. Once we created all environment variables, click on **Deploy**.
+9. We can verify in _settings_ and this Railway project should be liked to main branch, and we can change it if needed.
+10. In the part of **Networking > Public Networking**, Click on **Generate Domain**.
+11. After process of generating domain finishes (could take about 5 or 10 minutes), we can use the generated domain to test the app.
