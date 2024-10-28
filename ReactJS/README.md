@@ -373,25 +373,17 @@ export const LoginPage = () => {
         }
     }, [isAuthenticated]);
 
-    const login = useCallback(() => {
-        dispatch(startLoginWithEmailPassword(email, password)); // Need this to "dispath" (execute) an async process (each one of these methods uses also the dispath to call slice methods internally)
-    }, [email, password, dispatch]);
-
-    const loginGoogle = useCallback(() => {
-        dispatch(startGoogleAuthentication()); // Need this to "dispath" (execute) an async process (each one of these methods uses also the dispath to call slice methods internally)
-    }, [dispatch]);
-
     const onLogin = (e) => {
         e.preventDefault();
         setFormSubmitted(true);
         if (!isFormValid) return;
-        login();
+        dispatch(startLoginWithEmailPassword(email, password)); // Need this to "dispath" (execute) an async process (each one of these methods uses also the dispath to call slice methods internally)
     };
 
     const onGoogleLogin = (e) => {
         e.preventDefault();
         setFormSubmitted(true);
-        loginGoogle();
+        dispatch(startGoogleAuthentication()); // Need this to "dispath" (execute) an async process (each one of these methods uses also the dispath to call slice methods internally)
     };
 
     return (
