@@ -23,3 +23,7 @@
 ### TOP 10 librerías react DevTalles:
 
 https://blog.logrocket.com/top-10-react-component-libraries-for-2020/
+
+### ReactJS con TypeScript (By DevTalles)
+
+https://www.youtube.com/watch?v=dNxaP_BTtwQ&list=PLCKuOXG0bPi26-eawizqyLOgM7j66H_4M
