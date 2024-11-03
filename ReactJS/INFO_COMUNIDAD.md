@@ -2,7 +2,7 @@
 
 ## Librerías (Compartido por MinuDEV [en LinkedIn](https://www.linkedin.com/posts/midudev_mi-top-bibliotecas-para-react-en-2024-slider-activity-7257026724327002113-6M8Y?utm_source=share&utm_medium=member_desktop) el 29/10/2024):
 
-Mi TOP bibliotecas para React en 2024
+### Mi TOP bibliotecas para React en 2024
 
 -   Slider → [Flicking](https://naver.github.io/egjs-flicking/)
 -   Router → [Wouter](https://github.com/molefrog/wouter)
@@ -19,3 +19,7 @@ Mi TOP bibliotecas para React en 2024
 -   Animaciones → [Framer Motion](https://www.framer.com/motion/)
 -   Formularios → [React Hook Form](https://www.react-hook-form.com/)
 -   Data Fetching → [Tanstack Query](https://tanstack.com/query/latest)
+
+### TOP 10 librerías react DevTalles:
+
+https://blog.logrocket.com/top-10-react-component-libraries-for-2020/
