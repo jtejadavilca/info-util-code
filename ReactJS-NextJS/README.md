@@ -32,24 +32,22 @@ O puedes especificar el nombre del proyecto y la plantilla:
 npx create-next-app@latest my-next-app --typescript
 ```
 
-### Using `yarn`:
-
-```bash
-yarn create next-app
-```
-
-Si deseas usar TypeScript:
-
-```bash
-yarn create next-app my-next-app --typescript
-```
+> Recomendaciones al crear el proyecto:
+>
+> -   Typescript? _YES_
+> -   ESLint? _YES_
+> -   Tailwind? _YES_
+> -   src/ directory? _NO_ <small>src/ es la forma antigua</small>
+> -   Tailwind? _YES_
+> -   AppRouter? _YES_ <small>Nueva forma de trabajar con NextJS</small>
+> -   Alias? _NO_
 
 ## Running the development server
 
 Dentro de la carpeta del proyecto, puedes iniciar el servidor de desarrollo:
 
 ```bash
-yarn dev
+npm run dev
 ```
 
 Esto abrirá tu aplicación en [http://localhost:3000](http://localhost:3000).
@@ -59,51 +57,13 @@ Esto abrirá tu aplicación en [http://localhost:3000](http://localhost:3000).
 Para generar una versión de producción optimizada:
 
 ```bash
-yarn build
+npm run build
 ```
 
 Para iniciar el servidor en producción:
 
 ```bash
-yarn start
-```
-
-## Adding Tailwind CSS to a Next.js project
-
-### Installation:
-
-```bash
-yarn add -D tailwindcss postcss autoprefixer
-```
-
-Inicializa los archivos de configuración de Tailwind:
-
-```bash
-npx tailwindcss init -p
-```
-
-### Configuring `tailwind.config.js`:
-
-Asegúrate de que Tailwind escanee tus archivos Next.js:
-
-```javascript
-module.exports = {
-    content: ["./pages/**/*.{js,ts,jsx,tsx}", "./components/**/*.{js,ts,jsx,tsx}"],
-    theme: {
-        extend: {},
-    },
-    plugins: [],
-};
-```
-
-### Adding Tailwind directives:
-
-Añade las directivas de Tailwind en el archivo `./styles/globals.css`:
-
-```css
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+npm run start
 ```
 
 ## Adding `react-icons` for icons
@@ -111,7 +71,7 @@ Añade las directivas de Tailwind en el archivo `./styles/globals.css`:
 Instala la librería:
 
 ```bash
-yarn add react-icons
+npm install react-icons
 ```
 
 Usar un ícono en un componente:
@@ -128,7 +88,7 @@ export default function IconExample() {
 
 Next.js permite manejar API dentro de la carpeta `/pages/api`. Por ejemplo:
 
-### Archivo `/pages/api/hello.js`:
+### Archivo `/pages/api/hello.ts`:
 
 ```javascript
 export default function handler(req, res) {
