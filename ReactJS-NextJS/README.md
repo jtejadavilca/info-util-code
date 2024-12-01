@@ -297,57 +297,159 @@ export default async function DetailPage({ params }: Props) {
 }
 ```
 
-## Creating API routes in Next.js
+## Metadata dinámica
 
-Next.js permite manejar API dentro de la carpeta `/pages/api`. Por ejemplo:
+NextJS permite crear metadata dinámica para las páginas que se requiera (No todas requieren metadata dinámica), para ello se debe crear un méodo\
+en la página que se necesite esta dinámicamente, y dicho método debe llamarse "generateMetadata" y debe retornar un objeto con las propiedades `title` y `description`.
 
-### Archivo `/pages/api/hello.ts`:
+Ejemplo de un archivo `page.tsx` con metadata dinámica:
 
-```javascript
-export default function handler(req, res) {
-    res.status(200).json({ message: "Hello from Next.js API!" });
+```ts
+// /app/products/[id]/page.tsx
+
+export async function generateMetadata({ params }) {
+    const { id } = params;
+    const product = await fetchProduct(id); // Esta llamada puede ser a BD o un servicio externo
+    return {
+        title: product.name,
+        description: product.description,
+    };
+}
+
+export default function DetailPage({ product }) {
+    return (
+        <div>
+            <h1>{product.name}</h1>
+            <p>{product.description}</p>
+        </div>
+    );
 }
 ```
 
-Puedes acceder a esta ruta en [http://localhost:3000/api/hello](http://localhost:3000/api/hello).
+## Generación automática de páginas estáticas
 
-## Adding TypeScript to an existing project
+Es posible generar páginas estáticas en NextJS en tiempo de compilación, para ello se debe crear un método llamado `generateStaticParams` en el archivo de la página que se requiera generar estáticamente, y este método debe retornar un objeto con la propiedad `props` que contenga los datos que la página necesita para generarse.
 
-Si tu proyecto fue creado sin TypeScript, puedes configurarlo fácilmente:
+Ejemplo de un archivo `page.tsx` con generación automática de páginas estáticas:
 
-1. Instala las dependencias necesarias:
+```ts
+// /app/products/[id]/page.tsx
 
-    ```bash
-    yarn add -D typescript @types/react @types/node
-    ```
+export async function generateStaticParams() {
+    const productIds = await fetchProductIds({ limit: 100 }); // Este método trae los 100 primeros ids de productos para generar sus páginas estáticas
+    const data = productIds.map((productId) => ({ id: productId }));
+    return data;
+}
 
-2. Ejecuta el proyecto, y Next.js generará automáticamente un archivo `tsconfig.json`:
+export default function DetailPage({ product }) {
+    return (
+        <div>
+            <h1>{product.name}</h1>
+            <p>{product.description}</p>
+        </div>
+    );
+}
+```
 
-    ```bash
-    yarn dev
-    ```
+> NOTA: A pesar de tener páginas estáticas previamente creadas en tiempo de compilación, es posible que se requiera que una página se genere en tiempo de ejecución,\
+> simplementa, cuando el usuario acceda a la url que no tiene página generada, esta se generará en tiempo de ejecución.
 
-3. Renombra archivos `.js` a `.tsx` según sea necesario.
+## Redux Toolkit
 
-## Deployment
+En NextJS también es posible manejar el estado global de la aplicación con Redux Toolkit, solo que requiere un pequeño ajuste a lo que se acostumbra usar\
+del lado del cliente con ReactJS. Uno de las diferencias es que se usa `useAppDispatch` en lugar de `useDispatch` y `useAppSelector` en lugar de `useSelector`.\
+Para ello, primero se debe instalar las dependencias necesarias:
 
-Next.js es compatible con varios servicios de despliegue, como Vercel, Netlify y AWS.
+```bash
+npm install @reduxjs/toolkit react-redux
+```
 
-### Deployment to Vercel:
+Luego, se hace la implementación necesaria, la cual dejo en el siguiente ejemplo: [Redux Toolkit en NextJS](./ejemplo-redux-toolkit-nextjs.md)
 
-1. Instala la CLI de Vercel:
+## Creating API routes in Next.js
 
-    ```bash
-    yarn global add vercel
-    ```
+Next.js permite manejar API dentro de la misma aplicación, para ello solo necesitamos tener un archivo`route.ts`. El acceso al endpoit va a depender de la carpeta en que tenemos dicho archivo, ya que NextJS maneja las rutas basado en sus carpetas y en archivos de nombre `route.ts`. Por ejemplo, si tenemos un archivo `route.ts` en la carpeta `api`, entonces podremos acceder a dicho endpoint con la siguiente ruta: `http://localhost:3000/api/route`.
 
-2. Despliega tu proyecto:
+### Ejempo de endpoint GET `/pages/api/hello.ts`:
 
-    ```bash
-    vercel
-    ```
+```ts
+import { NextRequest, NextResponse } from "next/server";
 
-3. Sigue las instrucciones para vincular el proyecto.
+export async function GET(req: Request) {
+    return new Response(
+        JSON.stringfy({
+            message: "Hello, World!",
+        }),
+        { status: 200 }
+    );
+}
+```
+
+A ese endpoint se puede acceder con la siguiente ruta [http://localhost:3000/api/hello](http://localhost:3000/api/hello).
+
+Adicionalmente, podemos crear otros métodos HTTP como POST, PUT, DELETE, etc. Por ejemplo un POST seria de la siguiente forma:
+
+```ts
+import { NextRequest, NextResponse } from "next/server";
+
+export async function POST(req: Request) {
+    const data = await req.json();
+    return NextResponse.json(
+        {
+            message: "Hello world!",
+            data,
+        },
+        { status: 200 }
+    );
+}
+```
+
+También es posible obtener los datos enviados por URL o por el cuerpo de la petición, por ejemplo:
+
+```ts
+// /pages/api/products/[id]/page.ts
+import { NextRequest, NextResponse } from "next/server";
+
+interface Segments {
+    params: {
+        id: string;
+    };
+}
+export async function GET(_: Request, segment: Segments) {
+    const { id } = await segment.params;
+
+    const product = await getProduct(id);
+
+    return NextResponse.json({
+        message: "Product found!",
+        product,
+    });
+}
+```
+
+```ts
+// /pages/api/products/page.ts
+
+import prisma from "@/lib/prisma";
+import * as yup from "yup";
+import { NextRequest, NextResponse } from "next/server";
+
+const postSchema = yup.object({
+    description: yup.string().required(),
+    completed: yup.boolean().optional().default(false), //! TODO: mostrar algo luego...
+});
+export async function POST(req: Request) {
+    try {
+        const data = await postSchema.validate(await req.json(), { strict: true });
+
+        const todo = await prisma.todo.create({ data });
+
+        return NextResponse.json(todo, { status: 201 });
+    } catch (error: any) {
+        return NextResponse.json({ message: `Error: ${error.message}`, error }, { status: 400 });
+    }
+}
+```
 
 ## Adding tests with Jest
 
@@ -392,68 +494,255 @@ Ejecuta todos los tests:
 yarn test
 ```
 
-## Examples and best practices
+## INTEGRACIÓN CON BASE DE DATOS
 
-1. **Dynamic Routes**: Next.js soporta rutas dinámicas fácilmente con brackets (`[ ]`). Ejemplo:
+NextJS nos permite interactuar con diferentes bases de datos, ya sea SQL o NoSQL, y hay diferentes ORM conocidos como son Prisma y TypeORM; en principio haremos la configuración con Prisma y PostgreSQL.
 
-    Archivo: `/pages/post/[id].js`
+1. Para ello, se debe instalar la librería necesaria:
 
-    ```javascript
-    import { useRouter } from "next/router";
+```bash
+npm install @prisma/cli
+```
 
-    export default function Post() {
-        const { query } = useRouter();
-        return <div>Post ID: {query.id}</div>;
-    }
-    ```
+2. Luego se debe iniciar el archivo de configuración de Prisma:
 
-2. **Server-Side Rendering (SSR):**
+```bash
+npx prisma init
+```
 
-    ```javascript
-    export async function getServerSideProps() {
-        const data = await fetch("https://api.example.com/data").then((res) => res.json());
-        return { props: { data } };
-    }
+3. Establecer la URL a la base de datos en el archivo `.env` usando la variable `DATABASE_URL`:
 
-    export default function Page({ data }) {
-        return <div>{JSON.stringify(data)}</div>;
-    }
-    ```
+```env
+DATABASE_URL="postgresql://user:password@localhost:5432/dbname"
+```
 
-3. **Static Generation (SSG):**
+4. Establecer un provider en el archivo `schema.prisma` así como crear un modelo que representa a la tabla en la base de datos:
 
-    ```javascript
-    export async function getStaticProps() {
-        const data = await fetch("https://api.example.com/data").then((res) => res.json());
-        return { props: { data } };
-    }
+```ts
+// /prisma/schema.prisma
+generator client {
+  provider = "prisma-client-js"
+}
 
-    export default function Page({ data }) {
-        return <div>{JSON.stringify(data)}</div>;
-    }
-    ```
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
 
-4. **API Calls with SWR:**
 
-    Instala SWR:
+model Todo {
+  id        String   @id @default(uuid())
+  description String
+  completed Boolean @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+```
 
-    ```bash
-    yarn add swr
-    ```
+5. En caso se tenga una base de datos existente, se puede generar el modelo de Prisma con el siguiente comando:
 
-    Uso en un componente:
+```bash
+npx prisma db pull
+```
 
-    ```javascript
-    import useSWR from "swr";
+6. Para sincronizar la base de datos con el modelo de Prisma, se debe ejecutar el siguiente comando:
 
-    const fetcher = (url) => fetch(url).then((res) => res.json());
+```bash
+npx prisma migrate dev --name init
+```
 
-    export default function Example() {
-        const { data, error } = useSWR("/api/data", fetcher);
+Este comando crea una migración en la base de datos y la sincroniza con el modelo de Prisma.
 
-        if (error) return <div>Failed to load</div>;
-        if (!data) return <div>Loading...</div>;
+> WARNING: Este comando elimina los datos de la base de datos.
 
-        return <div>{JSON.stringify(data)}</div>;
-    }
-    ```
+7. Si se desea generar alteraciones a la base de datos sin generar migraciones y sin necesidad de purgar los datos, se puede ejecutar el siguiente comando:
+
+```bash
+npx prisma db push
+```
+
+8. Si se requiere hacer rollback a una migración anterior, se puede ejecutar el siguiente comando:
+
+```bash
+npx prisma migrate reset
+```
+
+Este comando elimina la última migración de la base de datos.
+
+9. Luego, se debe ejecutar el comando para generar el cliente de Prisma:
+
+```bash
+npx prisma generate
+```
+
+Este comando genera y actualiza lo que se tiene en el archivo schema.prisma. y lo convierte en un cliente de Prisma que se puede usar en la aplicación. Tomar en cuenta que cada vez que se haga un cambio en el archivo schema.prisma, se debe ejecutar este comando para actualizar el cliente de Prisma y poder interactuar con la base de datos a nivel de código.
+
+10. Para interactuar con la base de datos, se debe importar el cliente de Prisma en el archivo que se requiera:
+
+```ts
+// /pages/api/products/page.ts
+
+import prisma from "@/lib/prisma";
+
+export async function GET(req: Request) {
+    const todos = await prisma.todo.findMany();
+
+    return NextResponse.json({
+        message: "Todos found!",
+        todos,
+    });
+}
+```
+
+> IMPORTANTE: Para revisar mayor información sobre Prisma, se puede acceder a la documentación oficial [aquí](https://www.prisma.io/docs/)
+
+## Actualizaciones Optimistas
+
+Ya que NextJS es un framework que usa ReactJS, es posible hacer actualizaciones optimistas en la aplicación, pero solo puede aplicarse del lado del cliente. Para ello se hace uso de un hook llamado `useOptimistic` y se maneja según el siguiente ejemplo:
+
+```ts
+// src/todos/components/TodoItem.tsx
+
+"use client";
+import { Todo } from "@prisma/client";
+import { startTransition, useOptimistic } from "react"; // <-- Se importa el hook useOptimistic
+import { IoCheckbox, IoSquareOutline } from "react-icons/io5";
+import { ToggledTodo } from "../helpers";
+import styles from "./TodoItem.module.css";
+
+interface TodoProps {
+    todo: Todo;
+    toggleTodo: (id: string) => Promise<ToggledTodo | void>;
+}
+
+export const TodoItem = ({ todo, toggleTodo }: TodoProps) => {
+    // optimisticTodo es el estado optimista del todo
+    // toggleOptimisticTodo es la función que actualiza el estado optimista
+    const [optimisticTodo, toggleOptimisticTodo] = useOptimistic(todo, (state) => ({
+        ...state,
+        completed: !state.completed,
+    }));
+
+    const onToggleTodo = async () => {
+        // startTransition es una función de React que permite agrupar múltiples actualizaciones de estado en un solo render
+        startTransition(() => {
+            // toggleOptimisticTodo es una función que actualiza el estado optimista
+            toggleOptimisticTodo(optimisticTodo);
+        });
+
+        // toggleTodo es una función que realiza la acción de toggle en el servidor
+        await toggleTodo(optimisticTodo.id);
+    };
+
+    return (
+        <div className={optimisticTodo.completed ? styles.todoDone : styles.todoPending}>
+            <div className="flex flex-col sm:flex-row justify-start items-center gap-4">
+                <div
+                    onClick={onToggleTodo}
+                    className={`
+                    flex p-2 rounded-md cursor-pointer
+                    hover:bg-opacity-60
+                    ${optimisticTodo.completed ? "bg-blue-100" : "bg-red-100"}
+                `}
+                >
+                    {optimisticTodo.completed ? <IoCheckbox size={24} /> : <IoSquareOutline size={24} />}
+                </div>
+
+                <div className="text-center sm:text-left">{optimisticTodo.description}</div>
+            </div>
+        </div>
+    );
+};
+```
+
+## Cookies (Client side)
+
+En NextJS es posible trabajar con cookies, tando del lado del cliente como del lado del servidor, pero en ambos casos la implementación y uso es diferente. A continuación se deja un ejemplo de cómo se trabaja del lado del cliente:
+
+1. Primero instalamos la librería necesaria `cookies-next`:
+
+```bash
+npm install cookies-next
+```
+
+2. Se importa la librería en el archivo que se requiera (tiene que ser un client component):
+
+```ts
+// /src/components/TabBar.tsx
+
+"use client";
+
+import { setCookie } from "cookies-next"; // <-- Se importa la función setCookie
+import { useState } from "react";
+
+interface TabBarProps {
+    currentTab?: number;
+    tabOptions?: number[];
+}
+
+export const TabBar = ({
+    tabOptions: tabs = [1, 2, 3, 4, 5],
+    currentTab = 1, // <-- El servidor enviará el tab seleccionado que encuentra en la cookie, por este argumento.
+}: TabBarProps) => {
+    const [selected, setSelected] = useState(currentTab);
+
+    const onTabSelected = (tab: number) => {
+        setSelected(tab);
+        // Aqui se setea la cookie con el tab seleccionado a nive de cliente
+        setCookie("selectedTab", tab.toString());
+    };
+
+    return (
+        <div className={`grid w-full space-x-2 rounded-xl bg-gray-200 p-2 ${"grid-cols-" + tabs.length}`}>
+            {tabs.map((tab) => (
+                <div key={tab}>
+                    <input
+                        type="radio"
+                        id={`${tab}`}
+                        checked={selected == tab}
+                        onChange={() => {}}
+                        className="peer hidden checked"
+                    />
+                    <label
+                        onClick={() => onTabSelected(tab)}
+                        className="block cursor-pointer select-none rounded-xl p-2 text-center peer-checked:bg-blue-500 peer-checked:font-bold peer-checked:text-white"
+                    >
+                        {tab}
+                    </label>
+                </div>
+            ))}
+        </div>
+    );
+};
+```
+
+## Cookies (Server side)
+
+Del lado del servidor podemos obtener las cookies registradas a nivel cliente, ya que estas se envían en las cabeceras de las peticiones. Para ello, se puede hacer de la siguiente forma:
+
+```ts
+// /sec/app/dashboard/cookies/page.tsx
+
+import { cookies } from "next/headers"; // <-- Se importa la función cookies
+import { TabBar } from "@/components";
+
+export const metadata = {
+    title: "Cookies Page",
+    description: "Cookies",
+};
+
+export default async function CookiesPage() {
+    const cookieStore = await cookies(); // <-- Se obtienen las cookies del cliente
+    const cookieTab = parseInt(cookieStore.get("selectedTab")?.value ?? "1", 10); // <-- Se obtiene el valor por el key
+
+    return (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="flex flex-col">
+                <span className="text-3xl">Tabs</span>
+                {/* Aquí se envía el tab seleccionado a la página que se genera en el servidor */}
+                <TabBar currentTab={cookieTab} />
+            </div>
+        </div>
+    );
+}
+```
