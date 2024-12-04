@@ -37,8 +37,7 @@ npx create-next-app@latest my-next-app --typescript
 > -   Typescript? _YES_
 > -   ESLint? _YES_
 > -   Tailwind? _YES_
-> -   src/ directory? _NO_ <small>src/ es la forma antigua</small>
-> -   Tailwind? _YES_
+> -   src/ directory? _YES_
 > -   AppRouter? _YES_ <small>Nueva forma de trabajar con NextJS</small>
 > -   Alias? _NO_
 
