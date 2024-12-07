@@ -1,3 +1,15 @@
+# Resources to learn TailwindCSS:
+
+## Online courses
+
+-   [Oficial web](https://tailwindcss.com/docs/installation)
+-   [Tailwind Crash Course | Project From Scratch](https://www.youtube.com/watch?v=dFgzHOX84xQ)
+
+## Components:
+
+-   [flowbite.com](https://flowbite.com/docs/components)
+
+<hr />
 # Utils info and commands to handle Taildwind framework in frontend projects
 
 > [!IMPORTANT]  
