@@ -9,6 +9,10 @@
 
 -   [flowbite.com](https://flowbite.com/docs/components)
 
+## Play Tailwind Online
+
+-   [Play Tailwind](https://play.tailwindcss.com/)
+
 <hr />
 # Utils info and commands to handle Taildwind framework in frontend projects
 
