@@ -29,4 +29,4 @@
 -   Render: [render.com](https://render.com/)
     For backend part
 -   Neon: [neon-bindings.com](https://neon-bindings.com/)
-    For backend part
+    For backend part, it has a free tier for small projects and databases
