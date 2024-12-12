@@ -450,6 +450,60 @@ export async function POST(req: Request) {
 }
 ```
 
+## STATE MANAGEMENT
+
+### Zustand:
+
+Zustand is a small, fast and scaleable bearbones state-management solution using modern React hooks API to re-create the same power and flexibility of Redux. [Ir a la documentación](https://zustand.docs.pmnd.rs/getting-started/introduction)
+
+#### How to use Zustand in NextJS:
+
+1. Install Zustand:
+
+```bash
+npm install zustand
+```
+
+2. Create a store:
+
+```ts
+// /src/store/ui/ui-store.ts
+import { create } from "zustand";
+
+interface UIState {
+    isSidebarMenuOpen: boolean;
+
+    openSidebarMenu: () => void;
+    closeSidebarMenu: () => void;
+}
+
+export const useUIState = create<UIState>((set) => ({
+    isSidebarMenuOpen: false,
+
+    openSidebarMenu: () => set(() => ({ isSidebarMenuOpen: true })),
+    closeSidebarMenu: () => set(() => ({ isSidebarMenuOpen: false })),
+}));
+```
+
+3. Use the store in a component:
+
+```ts
+// /src/components/Sidebar.tsx
+import { useUIState } from "@/store/ui/ui-store";
+
+export default function Sidebar() {
+    const isSidebarMenuOpen = useUIState((state) => state.isSidebarMenuOpen);
+    const closeSidebarMenu = useUIState((state) => state.closeSidebarMenu);
+
+    return (
+        <aside className={`sidebar ${isSidebarMenuOpen ? "open" : ""}`}>
+            <button onClick={openSidebarMenu}>Open</button>
+            <button onClick={closeSidebarMenu}>Close</button>
+        </aside>
+    );
+}
+```
+
 ## Adding tests with Jest
 
 ### Install Jest and Testing Library:
