@@ -493,7 +493,7 @@ Ejecuta todos los tests:
 yarn test
 ```
 
-## INTEGRACIÓN CON BASE DE DATOS
+## INTEGRACIÓN CON BASE DE DATOS I (Prisma)
 
 NextJS nos permite interactuar con diferentes bases de datos, ya sea SQL o NoSQL, y hay diferentes ORM conocidos como son Prisma y TypeORM; en principio haremos la configuración con Prisma y PostgreSQL.
 
@@ -594,6 +594,20 @@ export async function GET(req: Request) {
 ```
 
 > IMPORTANTE: Para revisar mayor información sobre Prisma, se puede acceder a la documentación oficial [aquí](https://www.prisma.io/docs/)
+
+## INTEGRACIÓN CON BASE DE DATOS II (Prisma)
+
+Run the following command to install the Prisma:
+
+```bash
+npm install prisma --save-dev
+```
+
+Then, run the following command to initialize the Prisma with npx:
+
+```bash
+npx prisma init --datasource-provider PostgreSQL
+```
 
 ## Actualizaciones Optimistas
 
