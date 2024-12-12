@@ -489,6 +489,8 @@ export const useUIState = create<UIState>((set) => ({
 
 ```ts
 // /src/components/Sidebar.tsx
+"use client";
+
 import { useUIState } from "@/store/ui/ui-store";
 
 export default function Sidebar() {
