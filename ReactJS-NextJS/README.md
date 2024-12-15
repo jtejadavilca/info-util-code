@@ -506,6 +506,437 @@ export default function Sidebar() {
 }
 ```
 
+## Authentication (using Next-Auth)
+
+The way we are going to handle authentication in a NextJS project is using Auth.js, which is a library that provides a simple way to handle authentication in a NextJS project. [Ir a la documentación](https://next-auth.js.org/)
+
+So, in order to use Auth.js in a NextJS project, we need to follow the next steps:
+
+1. Install the necessary dependencies (we are going to use the beta version (v15.0.0-beta.25) of Auth.js for example):
+
+```bash
+npm install next-auth@beta
+```
+
+2. Creating a secret key for the JWT token using the following command:
+
+```bash
+openssl rand -base64 32
+```
+
+3. Save the secret key from the previous step in the `.env.local` file:
+
+```env
+NEXTAUTH_SECRET=your_secret_key
+```
+
+4. Create a file called `auth.config.ts` in the src folder:
+
+```ts
+// /src/auth.config.ts
+import type { NextAuthConfig } from "next-auth";
+import NextAuth from "next-auth";
+import Credentials from "next-auth/providers/credentials";
+import { z } from "zod";
+import prisma from "./lib/prisma";
+import bcryptjs from "bcryptjs";
+
+export const authConfig: NextAuthConfig = {
+    providers: [
+        // This is used for google authentication (OAuth)
+        {
+            id: "google",
+            name: "Google",
+            type: "oauth",
+            profile: (profile) => {
+                return {
+                    id: profile.id,
+                    name: profile.name,
+                    email: profile.email,
+                    image: profile.picture,
+                };
+            },
+            clientId: process.env.GOOGLE_CLIENT_ID,
+            clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+        },
+        // This is used for custom email and password authentication
+        Credentials({
+            async authorize(credentials) {
+                // 1. Validate the credentials (could be done with zod or any other library)
+                const parsedCredentials = z
+                    .object({
+                        email: z.string().email(),
+                        password: z.string().min(6),
+                    })
+                    .safeParse(credentials);
+
+                if (!parsedCredentials.success) {
+                    return null;
+                }
+
+                // 2. Find the user by email in the database
+                const { email, password } = parsedCredentials.data;
+                const user = await prisma.user.findUnique({
+                    where: {
+                        email: email.toLowerCase(),
+                    },
+                });
+
+                if (!user) {
+                    return null;
+                }
+
+                // 3. Check if the password is valid using bcryptjs
+                const isValid = bcryptjs.compareSync(password, user.password);
+
+                if (!isValid) {
+                    return null;
+                }
+
+                // 4. If the credentials are valid, return the user without the password
+                const { password: _, ...userWithoutPassword } = user;
+                return userWithoutPassword;
+            },
+        }),
+    ],
+    // This secret is required by NextAuth to encrypt the JWT token
+    secret: process.env.NEXTAUTH_SECRET,
+    pages: {
+        signIn: "/auth/login",
+        newUser: "/auth/new-account",
+    },
+};
+
+/**
+ * This is the auth functions that are going to be used in the pages to work with the authentication/session
+ * - signIn: This function is used to sign in the user
+ * - signOut: This function is used to sign out the user
+ * - auth: This function is used to get the session of the user
+ * - handlers: This object contains the endpoint (GET and POST) endpoints that are going to be used to validate the session by usgin cookies,
+ *   it requires a file called "route.ts" in the "/app/api/auth/[...nextauth]" folder */
+export const { signIn, signOut, auth, handlers } = NextAuth(authConfig);
+```
+
+5. Create the required file `/app/api/auth/[...nextauth]/route.ts`:
+
+```ts
+// /app/api/auth/[...nextauth]/route.ts
+import { handlers } from "@/auth.config";
+
+// This is all we need to export in order to use the handlers in the client pages/components
+export const { GET, POST } = handlers;
+```
+
+6. Create the action to sign in the user in `/src/actions/auth/login.ts`:
+    > IMPORTANT: This structre gave me some issues, because even though login process was successful,
+    > it throws an exception, and it's necessary to handle it and check if it is an AuthError,
+    > if IS IS NOT, then throw it again, so it will redirect correctly (which is weird, but it is how documentation is).
+
+```ts
+// /src/actions/auth/login.ts
+
+"use server"; //<-- This is used (important) to indicate that this file is going to be executed in the server
+
+import { signIn } from "@/auth.config";
+import { sleep } from "@/utils";
+import { AuthError } from "next-auth";
+
+export async function authenticate(prevState: string | undefined, formData: FormData) {
+    try {
+        await sleep(2);
+
+        await signIn("credentials", formData);
+    } catch (error) {
+        if (error instanceof AuthError) {
+            switch (error.type) {
+                case "CredentialsSignin":
+                    return "Invalid credentials.";
+                default:
+                    return "Something went wrong.";
+            }
+        }
+        // if all goes well, need to throw the error, it will redirect to the dashboard
+        // since "src/app/auth/layout.tsx" is handling the redirection when user is authenticated
+        throw error;
+    }
+}
+```
+
+7. Login page (server side) `/src/pages/auth/login/page.tsx` and LoginForm component (client side) `/src/pages/auth/login/ui/LoginForm.tsx`:
+
+#### LoginPage.tsx
+
+```ts
+// /src/pages/auth/login/page.tsx
+import { titleFont } from "@/config/fonts";
+import { LoginForm } from "./ui/LoginForm";
+
+export default function LoginPage() {
+    return (
+        <div className="flex flex-col min-h-screen pt-32 sm:pt-52">
+            <h1 className={`${titleFont.className} text-4xl mb-5`}>Ingresar</h1>
+
+            <LoginForm />
+        </div>
+    );
+}
+```
+
+#### LoginForm.tsx
+
+```ts
+"use client";
+import Link from "next/link";
+import React from "react";
+//import { useFormState } from "react-dom"; // <-- This is not used any more, use useActionState instead
+import { useActionState } from "react";
+
+import { authenticate } from "@/actions";
+import { IoInformationOutline } from "react-icons/io5";
+import clsx from "clsx";
+
+export const LoginForm = () => {
+    const [errorMessage, dispatch, isPending] = useActionState(authenticate, undefined);
+
+    return (
+        <form action={dispatch} className="flex flex-col">
+            <label htmlFor="email">Correo electrónico</label>
+            <input
+                className="px-5 py-2 border bg-gray-200 rounded mb-5"
+                type="email"
+                value="user1@gmail.com"
+                name="email"
+                onChange={() => {}}
+            />
+
+            <label htmlFor="email">Contraseña</label>
+            <input
+                className="px-5 py-2 border bg-gray-200 rounded mb-5"
+                value="123456"
+                type="password"
+                name="password"
+                onChange={() => {}}
+            />
+
+            {errorMessage && (
+                <div className="flex h-8 items-end space-x-1 mb-2" aria-live="polite" aria-atomic="true">
+                    <IoInformationOutline className="h-5 w-5 text-red-500" />
+                    <p className="text-sm text-red-500">Credenciales no son correctas</p>
+                </div>
+            )}
+
+            <button
+                type="submit"
+                disabled={isPending}
+                className={clsx({ "btn-primary": !isPending, "btn-disabled": isPending })}
+            >
+                Ingresar
+            </button>
+
+            {/* divisor l ine */}
+            <div className="flex items-center my-5">
+                <div className="flex-1 border-t border-gray-500"></div>
+                <div className="px-2 text-gray-800">O</div>
+                <div className="flex-1 border-t border-gray-500"></div>
+            </div>
+
+            <Link href="/auth/register" className="btn-secondary text-center">
+                Crear una nueva cuenta
+            </Link>
+        </form>
+    );
+};
+```
+
+8. How to validate session after authentication, in order to redirect to the dashboard in `/src/app/auth/layout.tsx` (SERVER PAGE):
+
+```ts
+// /src/app/auth/layout.tsx
+import { auth } from "@/auth.config";
+import { redirect } from "next/navigation";
+
+export default async function AuthLayout({ children }: { children: React.ReactNode }) {
+    const session = await auth();
+
+    if (session?.user) {
+        redirect("/");
+    }
+
+    return (
+        <main className="flex justify-center">
+            <div className="w-full sm:w-[350px] px-10">{children}</div>
+        </main>
+    );
+}
+```
+
+9. How to validate session into a internal SERVER PAGE like `/src/pages/app/profile/page.tsx`:
+
+```ts
+// /app/profile/page.tsx
+import { auth } from "@/auth.config"; // <-- Import the auth function
+import { TitleComponent } from "@/components";
+import { redirect } from "next/navigation";
+
+export default async function ProfilePage() {
+    const session = await auth(); // <-- Call the auth function
+
+    if (!session?.user) {
+        // <-- If the user is not authenticated, redirect to the login page
+        redirect("/auth/login?returnTo=/profile");
+    }
+
+    // If the user is authenticated, show the profile page
+    return (
+        <div>
+            <TitleComponent title="Profile" />
+            <pre>{JSON.stringify(session.user, null, 2)}</pre>
+        </div>
+    );
+}
+```
+
+10. How to validate and control the session in the client side, in order to avoid showing some components and parts of according to the user's session and roles:
+    For this we need to use the `useSession` hook from `next-auth/react` (wthis is why we need the `/src/app/api/auth/[...nextauth]/route.ts` file created before):
+
+```ts
+// /src/components/sidebar/Sidebar.tsx
+
+"use client";
+
+import { useUIState } from "@/store";
+import clsx from "clsx";
+import Link from "next/link";
+import React from "react";
+import {
+    IoCloseOutline,
+    IoLogInOutline,
+    IoLogOutOutline,
+    IoPeopleOutline,
+    IoPersonOutline,
+    IoSearchOutline,
+    IoShirtOutline,
+    IoTicketOutline,
+} from "react-icons/io5";
+import { HSeparator } from "../hseparator/HSeparator";
+import { logout } from "@/actions";
+import { useSession } from "next-auth/react";
+
+export const Sidebar = () => {
+    const isSidebarMenuOpen = useUIState((state) => state.isSidebarMenuOpen);
+    const closeSidebarMenu = useUIState((state) => state.closeSidebarMenu);
+
+    const { data: session } = useSession();
+    const isAuthenticated = !!session?.user;
+
+    const handleCloseSidebarMenu = () => {
+        closeSidebarMenu();
+    };
+
+    return (
+        <div>
+            {/* Background black */}
+            {isSidebarMenuOpen && <div className="fade-in fixed top-0 left-0 w-screen h-screen z-10 bg-black/30"></div>}
+            {/* Blur */}
+            {isSidebarMenuOpen && (
+                <div
+                    onClick={handleCloseSidebarMenu}
+                    className="fade-in fixed top-0 left-0 w-screen h-screen z-10 backdrop-filter backdrop-blur-sm"
+                ></div>
+            )}
+            {/* Sidemenu */}
+            <nav
+                className={clsx(
+                    "fade-in fixed p-5 right-0 top-0 w-[500px] h-screen bg-white z-20 shadow-2xl transform transition-all duration-300",
+                    {
+                        "translate-x-full": !isSidebarMenuOpen,
+                    }
+                )}
+            >
+                <IoCloseOutline
+                    className="absolute top-5 right-5 text-2xl cursor-pointer"
+                    onClick={handleCloseSidebarMenu}
+                />
+
+                {/* Input */}
+                <div className="relative mt-14">
+                    <IoSearchOutline className="absolute top-2 left-2 text-xl text-gray-500" />
+                    <input
+                        type="text"
+                        placeholder="Buscar"
+                        className="w-full bg-gray-50 rounded border-b-2 pl-10 pr-3 py-2 border-gray-300 focus:outline-none focus:border-blue-500 focus:border-transparent"
+                    />
+                </div>
+
+                {/* Menú */}
+                <Link
+                    href="/profile"
+                    className="flex items-center mt-10 p-2 rounded transition-all hover:bg-gray-100"
+                    onClick={handleCloseSidebarMenu}
+                >
+                    <IoPersonOutline className="text-4xl text-gray-500 cursor-pointer" />
+                    <span className="ml-5 text-lg">Perfil</span>
+                </Link>
+
+                {!isAuthenticated && ( //Here is how we can control the session and show or hide some components)
+                    <Link
+                        href="/auth/login"
+                        className="flex items-center mt-10 p-2 rounded transition-all hover:bg-gray-100"
+                        onClick={handleCloseSidebarMenu}
+                    >
+                        <IoLogInOutline className="text-4xl text-gray-500 cursor-pointer" />
+                        <span className="ml-5 text-lg">Ingresar</span>
+                    </Link>
+                )}
+
+                {isAuthenticated && ( //Here is how we can control the session and show or hide some components)
+                    <button
+                        className="flex w-full items-center mt-10 p-2 rounded transition-all hover:bg-gray-100"
+                        onClick={() => {
+                            handleCloseSidebarMenu();
+                            logout();
+                        }}
+                    >
+                        <IoLogOutOutline className="text-4xl text-gray-500 cursor-pointer" />
+                        <span className="ml-5 text-lg">Salir</span>
+                    </button>
+                )}
+
+                {/* Separator */}
+                <HSeparator className="my-10" />
+
+                <Link
+                    href="/"
+                    className="flex items-center mt-10 p-2 rounded transition-all hover:bg-gray-100"
+                    onClick={handleCloseSidebarMenu}
+                >
+                    <IoShirtOutline className="text-4xl text-gray-500 cursor-pointer" />
+                    <span className="ml-5 text-lg">Products</span>
+                </Link>
+
+                <Link
+                    href="/"
+                    className="flex items-center mt-10 p-2 rounded transition-all hover:bg-gray-100"
+                    onClick={handleCloseSidebarMenu}
+                >
+                    <IoTicketOutline className="text-4xl text-gray-500 cursor-pointer" />
+                    <span className="ml-5 text-lg">Órdenes</span>
+                </Link>
+
+                <Link
+                    href="/"
+                    className="flex items-center mt-10 p-2 rounded transition-all hover:bg-gray-100"
+                    onClick={handleCloseSidebarMenu}
+                >
+                    <IoPeopleOutline className="text-4xl text-gray-500 cursor-pointer" />
+                    <span className="ml-5 text-lg">Usuarios</span>
+                </Link>
+            </nav>
+        </div>
+    );
+};
+```
+
 ## Adding tests with Jest
 
 ### Install Jest and Testing Library:
