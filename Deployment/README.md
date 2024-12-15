@@ -6,6 +6,8 @@
     For frontend part
 -   Netlify: [netlify.com](https://www.netlify.com/)
     For frontend part
+-   koyeb: [koyeb.com](https://koyeb.com/)
+    For backend part
 -   Heroku: [heroku.com](https://www.heroku.com/)
     For backend part
 -   Firebase: [firebase.google.com](https://firebase.google.com/)
