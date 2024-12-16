@@ -542,6 +542,26 @@ import prisma from "./lib/prisma";
 import bcryptjs from "bcryptjs";
 
 export const authConfig: NextAuthConfig = {
+    pages: {
+        signIn: "/auth/login",
+        newUser: "/auth/new-account",
+    },
+    callbacks: {
+        // The methods jwt and session will allow us to set the user full information into the session
+
+        async jwt({ token, user }) {
+            if (user) {
+                token.data = user;
+            }
+            return token;
+        },
+        async session({ session, token }) {
+            // This give us an typing error, then we need to create a file called `nextauth.d.ts` (implemented below) in the root of the project
+            // in order to get access to all the user properties we need
+            session.user = token.data as any; // <-- This is the line that gives us the typing error, so need to keep `as any`
+            return session;
+        },
+    },
     providers: [
         // This is used for google authentication (OAuth)
         {
@@ -601,10 +621,6 @@ export const authConfig: NextAuthConfig = {
     ],
     // This secret is required by NextAuth to encrypt the JWT token
     secret: process.env.NEXTAUTH_SECRET,
-    pages: {
-        signIn: "/auth/login",
-        newUser: "/auth/new-account",
-    },
 };
 
 /**
@@ -617,7 +633,27 @@ export const authConfig: NextAuthConfig = {
 export const { signIn, signOut, auth, handlers } = NextAuth(authConfig);
 ```
 
-5. Create the required file `/app/api/auth/[...nextauth]/route.ts`:
+5. Create the file `nextauth.d.ts` in the root of the project:
+
+```ts
+// /nextauth.d.ts
+import NextAuth, { DefaultSession } from "next-auth";
+
+declare module "next-auth" {
+    interface Session {
+        user: {
+            id: string;
+            name: string;
+            email: string;
+            emailVerified: boolean;
+            role: string;
+            image?: string;
+        } & DefaultSession["user"];
+    }
+}
+```
+
+6. Create the required file `/app/api/auth/[...nextauth]/route.ts`:
 
 ```ts
 // /app/api/auth/[...nextauth]/route.ts
@@ -627,10 +663,12 @@ import { handlers } from "@/auth.config";
 export const { GET, POST } = handlers;
 ```
 
-6. Create the action to sign in the user in `/src/actions/auth/login.ts`:
+7. Create the action to sign in the user in `/src/actions/auth/login.ts` and the action to sign out the user in `/src/actions/auth/logout.ts`:
     > IMPORTANT: This structre gave me some issues, because even though login process was successful,
     > it throws an exception, and it's necessary to handle it and check if it is an AuthError,
     > if IS IS NOT, then throw it again, so it will redirect correctly (which is weird, but it is how documentation is).
+
+#### login.ts:
 
 ```ts
 // /src/actions/auth/login.ts
@@ -645,7 +683,12 @@ export async function authenticate(prevState: string | undefined, formData: Form
     try {
         await sleep(2);
 
-        await signIn("credentials", formData);
+        //await signIn("credentials", formData); <-- This is one way, but we can use the following way to redirect to the dashboard
+        await signIn("credentials", {
+            ...Object.fromEntries(formData),
+            redirect: true,
+            redirectTo: prevState || "/?auth=true",
+        });
     } catch (error) {
         if (error instanceof AuthError) {
             switch (error.type) {
@@ -662,7 +705,22 @@ export async function authenticate(prevState: string | undefined, formData: Form
 }
 ```
 
-7. Login page (server side) `/src/pages/auth/login/page.tsx` and LoginForm component (client side) `/src/pages/auth/login/ui/LoginForm.tsx`:
+#### logout.ts:
+
+```ts
+"use server";
+
+import { signOut } from "@/auth.config";
+
+export const logout = async () => {
+    await signOut({
+        redirect: true,
+        redirectTo: "/auth/login",
+    });
+};
+```
+
+8. Login page (server side) `/src/pages/auth/login/page.tsx` and LoginForm component (client side) `/src/pages/auth/login/ui/LoginForm.tsx`:
 
 #### LoginPage.tsx
 
@@ -748,7 +806,7 @@ export const LoginForm = () => {
 };
 ```
 
-8. How to validate session after authentication, in order to redirect to the dashboard in `/src/app/auth/layout.tsx` (SERVER PAGE):
+9. How to validate session after authentication, in order to redirect to the dashboard in `/src/app/auth/layout.tsx` (SERVER PAGE):
 
 ```ts
 // /src/app/auth/layout.tsx
@@ -770,7 +828,7 @@ export default async function AuthLayout({ children }: { children: React.ReactNo
 }
 ```
 
-9. How to validate session into a internal SERVER PAGE like `/src/pages/app/profile/page.tsx`:
+10. How to validate session into a internal SERVER PAGE like `/src/pages/app/profile/page.tsx`:
 
 ```ts
 // /app/profile/page.tsx
@@ -796,7 +854,7 @@ export default async function ProfilePage() {
 }
 ```
 
-10. How to validate and control the session in the client side, in order to avoid showing some components and parts of according to the user's session and roles:
+11. How to validate and control the session in the client side, in order to avoid showing some components and parts of according to the user's session and roles:
     For this we need to use the `useSession` hook from `next-auth/react` (wthis is why we need the `/src/app/api/auth/[...nextauth]/route.ts` file created before):
 
 ```ts
@@ -821,13 +879,26 @@ import {
 import { HSeparator } from "../hseparator/HSeparator";
 import { logout } from "@/actions";
 import { useSession } from "next-auth/react";
+import { useSearchParams } from "next/navigation";
 
 export const Sidebar = () => {
+    // get query param:
+    // This could be necessary to make a hard redirect to the home page when the user is authenticated
+    // in order to update some client components that are not going to be updated after login
+    // and session data is not being updated properly
+    const searchParams = useSearchParams();
+    if (searchParams.has("auth")) {
+        window.location.replace("/");
+    }
+
     const isSidebarMenuOpen = useUIState((state) => state.isSidebarMenuOpen);
     const closeSidebarMenu = useUIState((state) => state.closeSidebarMenu);
 
     const { data: session } = useSession();
-    const isAuthenticated = !!session?.user;
+    const user = session?.user;
+    const isAuthenticated = !!user;
+    const isAdmin = isAuthenticated && user?.role === "ADMIN";
+    const isUser = isAuthenticated && user?.role === "USER";
 
     const handleCloseSidebarMenu = () => {
         closeSidebarMenu();
@@ -869,16 +940,28 @@ export const Sidebar = () => {
                 </div>
 
                 {/* Menú */}
-                <Link
-                    href="/profile"
-                    className="flex items-center mt-10 p-2 rounded transition-all hover:bg-gray-100"
-                    onClick={handleCloseSidebarMenu}
-                >
-                    <IoPersonOutline className="text-4xl text-gray-500 cursor-pointer" />
-                    <span className="ml-5 text-lg">Perfil</span>
-                </Link>
+                {isUser && (
+                    <Link
+                        href="/profile"
+                        className="flex items-center mt-10 p-2 rounded transition-all hover:bg-gray-100"
+                        onClick={handleCloseSidebarMenu}
+                    >
+                        <IoPersonOutline className="text-4xl text-gray-500 cursor-pointer" />
+                        <span className="ml-5 text-lg">Perfil</span>
+                    </Link>
+                )}
+                {isUser && (
+                    <Link
+                        href="/"
+                        className="flex items-center mt-10 p-2 rounded transition-all hover:bg-gray-100"
+                        onClick={handleCloseSidebarMenu}
+                    >
+                        <IoTicketOutline className="text-4xl text-gray-500 cursor-pointer" />
+                        <span className="ml-5 text-lg">Órdenes</span>
+                    </Link>
+                )}
 
-                {!isAuthenticated && ( //Here is how we can control the session and show or hide some components)
+                {!isAuthenticated && (
                     <Link
                         href="/auth/login"
                         className="flex items-center mt-10 p-2 rounded transition-all hover:bg-gray-100"
@@ -889,7 +972,7 @@ export const Sidebar = () => {
                     </Link>
                 )}
 
-                {isAuthenticated && ( //Here is how we can control the session and show or hide some components)
+                {isAuthenticated && (
                     <button
                         className="flex w-full items-center mt-10 p-2 rounded transition-all hover:bg-gray-100"
                         onClick={() => {
@@ -905,32 +988,38 @@ export const Sidebar = () => {
                 {/* Separator */}
                 <HSeparator className="my-10" />
 
-                <Link
-                    href="/"
-                    className="flex items-center mt-10 p-2 rounded transition-all hover:bg-gray-100"
-                    onClick={handleCloseSidebarMenu}
-                >
-                    <IoShirtOutline className="text-4xl text-gray-500 cursor-pointer" />
-                    <span className="ml-5 text-lg">Products</span>
-                </Link>
+                {isAdmin && (
+                    <Link
+                        href="/"
+                        className="flex items-center mt-10 p-2 rounded transition-all hover:bg-gray-100"
+                        onClick={handleCloseSidebarMenu}
+                    >
+                        <IoShirtOutline className="text-4xl text-gray-500 cursor-pointer" />
+                        <span className="ml-5 text-lg">Products</span>
+                    </Link>
+                )}
 
-                <Link
-                    href="/"
-                    className="flex items-center mt-10 p-2 rounded transition-all hover:bg-gray-100"
-                    onClick={handleCloseSidebarMenu}
-                >
-                    <IoTicketOutline className="text-4xl text-gray-500 cursor-pointer" />
-                    <span className="ml-5 text-lg">Órdenes</span>
-                </Link>
+                {isAdmin && (
+                    <Link
+                        href="/"
+                        className="flex items-center mt-10 p-2 rounded transition-all hover:bg-gray-100"
+                        onClick={handleCloseSidebarMenu}
+                    >
+                        <IoTicketOutline className="text-4xl text-gray-500 cursor-pointer" />
+                        <span className="ml-5 text-lg">Órdenes</span>
+                    </Link>
+                )}
 
-                <Link
-                    href="/"
-                    className="flex items-center mt-10 p-2 rounded transition-all hover:bg-gray-100"
-                    onClick={handleCloseSidebarMenu}
-                >
-                    <IoPeopleOutline className="text-4xl text-gray-500 cursor-pointer" />
-                    <span className="ml-5 text-lg">Usuarios</span>
-                </Link>
+                {isAdmin && (
+                    <Link
+                        href="/"
+                        className="flex items-center mt-10 p-2 rounded transition-all hover:bg-gray-100"
+                        onClick={handleCloseSidebarMenu}
+                    >
+                        <IoPeopleOutline className="text-4xl text-gray-500 cursor-pointer" />
+                        <span className="ml-5 text-lg">Usuarios</span>
+                    </Link>
+                )}
             </nav>
         </div>
     );
