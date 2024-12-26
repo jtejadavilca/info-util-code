@@ -3,6 +3,7 @@
 #### Powerful asynchronous state management for TS/JS, React, Solid, Vue, Svelte and Angular.
 
 Toss out that granular state management, manual refetching and endless bowls of async-spaghetti code. TanStack Query gives you declarative, always-up-to-date auto-managed queries and mutations that directly improve both your developer and user experiences.
+Project repository with example: [FB Issues](https://github.com/jtejadavilca-cursos/tanstack-query-fr-course)
 
 ## Installation
 
@@ -301,6 +302,7 @@ export const ProductList: FC<ProductListProps> = ({ products }) => {
 ```
 
 3. Using the prefetch:
+
 ```tsx
 <Link to={`/product/${product.id}`} onMouseEnter={() => prefetchProduct && prefetchProduct(product.id)}>
     <Card className="relative flex flex-col md:flex-row md:space-x-5 space-y-3 md:space-y-0 rounded-xl shadow-lg p-3 max-w-xs md:max-w-3xl mx-auto border border-white bg-white">
@@ -308,4 +310,3 @@ export const ProductList: FC<ProductListProps> = ({ products }) => {
     </Card>
 </Link>
 ```
-
