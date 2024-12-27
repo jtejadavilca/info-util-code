@@ -1,6 +1,7 @@
 # Zustand
 
 A simple state management library for React. It doesn't have too many boilerplate codes and it's easy to use. It's a small library and it's only 1kb in size. A lot of people is adopting Zustand as their state management library because of its simplicity and performance, and it is even easier to use than React's Context API and Redux Toolkit.
+Example of project using Zustand: [NextJS-Ecommerce TesloShop](https://github.com/jtejadavilca-cursos/nextjs-course-fh-teslo-shop)
 
 ## Installation
 
