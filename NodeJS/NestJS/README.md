@@ -281,6 +281,167 @@ async function bootstrap() {
 bootstrap();
 ```
 
+## Example of implementing database (mongo) mapping with relationships among entities:
+
+This is an example of how to implement a relationship between two entities in a mongo database using three tables (documents).
+Documents are: `User`, `Product`, and `Order`.
+
+### User schema:
+
+```ts
+// user.schema.ts
+
+import { Prop, Schema, SchemaFactory } from "@nestjs/mongoose";
+import { HydratedDocument } from "mongoose";
+import { Product } from "./product.schema";
+import { Types } from "mongoose";
+
+export type UserDocument = HydratedDocument<User>;
+
+@Schema({ collection: "users", timestamps: true })
+export class User {
+    @Prop({ required: true })
+    name: string;
+
+    @Prop({ required: true, unique: true })
+    email: string;
+
+    @Prop({ required: true })
+    password: string;
+
+    @Prop({ type: [{ type: Types.ObjectId, ref: "Product" }] })
+    products: Types.ObjectId[]; // References multiple products created by the user
+}
+
+export const UserSchema = SchemaFactory.createForClass(User);
+```
+
+### Category schema:
+
+```ts
+// category.schema.ts
+
+import { Prop, Schema, SchemaFactory } from "@nestjs/mongoose";
+import { HydratedDocument } from "mongoose";
+import { Product } from "./product.schema";
+import { Types } from "mongoose";
+
+export type CategoryDocument = HydratedDocument<Category>;
+
+@Schema({ collection: "categories", timestamps: true })
+export class Category {
+    @Prop({ required: true, unique: true })
+    name: string;
+
+    @Prop()
+    description: string;
+
+    @Prop({ type: [{ type: Types.ObjectId, ref: "Product" }] })
+    products: Types.ObjectId[]; // References multiple products in the category
+}
+
+export const CategorySchema = SchemaFactory.createForClass(Category);
+```
+
+### Product schema:
+
+```ts
+// product.schema.ts
+
+import { Prop, Schema, SchemaFactory } from "@nestjs/mongoose";
+import { HydratedDocument } from "mongoose";
+import { Category } from "./category.schema";
+import { User } from "./user.schema";
+import { Types } from "mongoose";
+
+export type ProductDocument = HydratedDocument<Product>;
+
+@Schema({ collection: "products", timestamps: true })
+export class Product {
+    @Prop({ required: true })
+    name: string;
+
+    @Prop({ required: true })
+    description: string;
+
+    @Prop({ required: true })
+    price: number;
+
+    @Prop({ type: Types.ObjectId, ref: "Category", required: true })
+    category: Types.ObjectId; // The category to which this product belongs
+
+    @Prop({ type: Types.ObjectId, ref: "User", required: true })
+    createdBy: Types.ObjectId; // The user who created this product
+}
+
+export const ProductSchema = SchemaFactory.createForClass(Product);
+```
+
+### Configuring module (DatabaseModule):
+
+```ts
+// database.module.ts
+
+import { Module } from "@nestjs/common";
+import { MongooseModule } from "@nestjs/mongoose";
+import { Product, ProductSchema } from "./schemas/product.schema";
+import { Category, CategorySchema } from "./schemas/category.schema";
+import { User, UserSchema } from "./schemas/user.schema";
+
+@Module({
+    imports: [
+        MongooseModule.forFeature([
+            { name: Product.name, schema: ProductSchema },
+            { name: Category.name, schema: CategorySchema },
+            { name: User.name, schema: UserSchema },
+        ]),
+    ],
+    exports: [MongooseModule],
+})
+export class DatabaseModule {}
+```
+
+### Implementing service layer:
+
+```ts
+// product.service.ts
+
+import { Injectable } from "@nestjs/common";
+import { InjectModel } from "@nestjs/mongoose";
+import { Model } from "mongoose";
+import { Product, ProductDocument } from "./schemas/product.schema";
+
+@Injectable()
+export class ProductService {
+    constructor(@InjectModel(Product.name) private productModel: Model<ProductDocument>) {}
+
+    async createProduct(
+        name: string,
+        description: string,
+        price: number,
+        categoryId: string,
+        userId: string
+    ): Promise<Product> {
+        const product = new this.productModel({
+            name,
+            description,
+            price,
+            category: categoryId,
+            createdBy: userId,
+        });
+        return product.save();
+    }
+
+    async getProducts(): Promise<Product[]> {
+        return this.productModel
+            .find()
+            .populate("category") // Populate the category field
+            .populate("createdBy") // Populate the user field
+            .exec();
+    }
+}
+```
+
 ## Authentication and Authorization necessary config is in [AUTH_CONFIG.md](./AUTH_CONFIG.md) file.
 
 # Deployment of a Node project:
