@@ -46,9 +46,9 @@ export default {
 Add the tailwind directives to your CSS (it could be in `./src/index.css`):
 
 ```
-@tailwind base
-@tailwind components
-@tailwind utilities
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 ```
 
 ## Adding libraries for unit tests
