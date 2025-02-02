@@ -1,8 +1,8 @@
-# Mapping de entidades en NestJS con Postgres
+# Mapping of entities in NestJS with Postgres
 
-Ejemplos de mapeo de entidades en NestJS con Postgres
+Examples of entity mapping in NestJS with Postgres
 
-## Entidad "Participant"
+## Entity "Participant"
 
 ```ts
 import {
@@ -50,7 +50,7 @@ export class Participant {
 }
 ```
 
-## Entidad "ParticipantType"
+## Entity "ParticipantType"
 
 ```ts
 import { Entity, Column, PrimaryGeneratedColumn, OneToMany } from "typeorm";
@@ -72,7 +72,7 @@ export class ParticipantType {
 }
 ```
 
-## Entidad "User"
+## Entity "User"
 
 ```ts
 import { Entity, Column, PrimaryGeneratedColumn, OneToMany } from "typeorm";

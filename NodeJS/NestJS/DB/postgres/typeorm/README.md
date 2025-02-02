@@ -1,18 +1,32 @@
 # NestJS + Postgres + TypeORM
 
-En NestJS se pueden utilizar diferentes bases de datos, entre ellas Postgres. Para ello, se puede utilizar TypeORM, un ORM que permite trabajar con diferentes bases de datos, incluyendo Postgres.
+In NestJS it's possible to use different databases, including Postgres. For this, TypeORM can be used, an ORM that allows working with different databases, including Postgres.
 
-## Instalaciones necesarias
+## 1. Necessary installations
 
-Para trabajar con Postgres en NestJS, se deben instalar las siguientes dependencias:
+In order to work with Postgres in NestJS, the following dependencies must be installed:
 
 ```bash
-$ npm install @nestjs/typeorm typeorm pg
+npm install @nestjs/typeorm typeorm pg
 ```
 
-## Configuración (No obligatoria)
+Other required libraries we need to install in order to have more configurations in our application are:
 
-Para configurar la conexión con Postgres, se puede crear un archivo `ormconfig.json`, el cual será leído automáticamente en el archivo `app.module.ts` con solo colocar `imports: [TypeOrmModule.forRoot()],`. Dicho archivo debe ir en la raíz con la siguiente estructura:
+### For environment variables
+
+```bash
+npm install @nestjs/config
+```
+
+### For dto validation
+
+```bash
+npm install class-validator class-transformer
+```
+
+## 2. DB Configurations (Not mandatory)
+
+In order to configure the connection with Postgres, a `ormconfig.json` file can be created, which will be automatically read in the `app.module.ts` file by just placing `imports: [TypeOrmModule.forRoot()],`. This file must go in the root with the following structure:
 
 ```json
 {
@@ -27,9 +41,11 @@ Para configurar la conexión con Postgres, se puede crear un archivo `ormconfig.
 }
 ```
 
-## Agregar la configuración de TypeORM al módulo de la aplicación
+## 3. Adding TypeORM configuration to the application module
 
 Para agregar la configuración de TypeORM al módulo de la aplicación, se debe importar el módulo `TypeOrmModule` en el módulo principal de la aplicación (`app.module.ts`) y configurarlo con la información del archivo `ormconfig.json`:
+
+To add the TypeORM configuration to the application module, the `TypeOrmModule` module must be imported in the main application module (`app.module.ts`) and configured with the information from the `ormconfig.json` file:
 
 ```ts
 import { Module } from "@nestjs/common";
@@ -39,7 +55,9 @@ import { AppService } from "./app.service";
 
 @Module({
     imports: [
+        //TypeOrmModule.forRoot(), <- This gets the configuration from ormconfig.json
         TypeOrmModule.forRoot({
+            // <- This receives the configuration directly here
             type: "postgres",
             host: "localhost",
             port: 5432,
@@ -56,6 +74,34 @@ import { AppService } from "./app.service";
 export class AppModule {}
 ```
 
-## Ejemplos de mapeo de entidades en NestJS con Postgres
+## 4. Adding specific entity/module configuration in its own module
+
+To add the configuration of a specific entity/module, it must be imported in the module where it will be used, and the `TypeOrmModule.forFeature()` method must be used to configure the entity:
+
+```ts
+import { Module } from "@nestjs/common";
+import { TypeOrmModule } from "@nestjs/typeorm";
+import { ParticipantType } from "./participant-type.entity";
+import { ParticipantTypeService } from "./participant-type.service";
+
+@Module({
+    imports: [TypeOrmModule.forFeature([ParticipantType])],
+    providers: [ParticipantTypeService],
+    exports: [
+        ParticipantTypeService,
+        {
+            provide: ParticipantTypeRepository, // <- This is the repository (abstract class) that will be used
+            useClass: ParticipantTypeMongoDbRepository, // <- This is the repository implementation that will be used
+        },
+    ],
+})
+export class ParticipantTypeModule {}
+```
+
+## 5. Ejemplos de mapeo de entidades en NestJS con Postgres
 
 Se puede ver un ejemplo de mapeo de entidades en NestJS con Postgres en el siguiente enlace: [Ejemplos de mapeo de entidades en NestJS con Postgres](./mapping.postgres.md).
+
+## 6. Example of controller, service and repository:
+
+In the following link you can see an example of a controller, service and repository in NestJS with Postgres: [Example of controller, service and repository in NestJS with Postgres](./controller-service-repository.postgres.md).
