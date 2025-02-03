@@ -112,7 +112,7 @@ export class MyService {
 1. Install `@nestjs/mongoose`:
 
 ```bash
-yarn add @nestjs/mongoose
+yarn add @nestjs/mongoose mongoose
 ```
 
 2. Adding MongooseModule in AppModule:

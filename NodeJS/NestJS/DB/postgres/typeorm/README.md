@@ -2,6 +2,8 @@
 
 In NestJS it's possible to use different databases, including Postgres. For this, TypeORM can be used, an ORM that allows working with different databases, including Postgres.
 
+Project example: [NestJS + Postgres + TypeORM](https://github.com/jtejadavilca/nestjs-registration-event-admin)
+
 ## 1. Necessary installations
 
 In order to work with Postgres in NestJS, the following dependencies must be installed:
